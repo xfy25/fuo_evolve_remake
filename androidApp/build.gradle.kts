@@ -48,11 +48,11 @@ val gitVersionCode = gitOutput("rev-list", "--count", gitVersionCodeBase)
     ?: 1
 // ABI set packaged into the APK. A CI run can narrow it (e.g. arm64 only) via
 // -Pfuoevolve.abis=arm64-v8a without touching this file.
-val fuoevolveAbis = providers.gradleProperty("fuoevolve.abis")
+val fuoevolveAbis = providers.gradleProperty("fuoevolve.abis").orNull
     ?.split(',')
-    ?.map(String::trim)
-    ?.filter(String::isNotEmpty)
-    ?.takeIf(List<String>::isNotEmpty)
+    ?.map { it.trim() }
+    ?.filter { it.isNotEmpty() }
+    ?.takeIf { it.isNotEmpty() }
     ?: listOf("arm64-v8a", "x86_64")
 val fuoSigningStoreFile = signingValue("FUO_SIGNING_STORE_FILE", "fuo.signing.storeFile")
 val fuoSigningStorePassword = signingValue("FUO_SIGNING_STORE_PASSWORD", "fuo.signing.storePassword")
