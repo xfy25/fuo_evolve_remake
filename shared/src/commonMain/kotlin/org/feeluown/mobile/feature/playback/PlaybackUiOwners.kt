@@ -130,9 +130,14 @@ class DefaultPlaybackQualityPort(
     init {
         scope.launch {
             playbackState.collect { state ->
-                effectiveQualityState = PlaybackQualityOverride.level
-                    ?.let(AudioQualityPolicy::fromLevel)
-                    ?: state.audioQuality?.let(AudioQualityPolicy::fromLevel)
+                // What is actually playing wins; the override is only a fallback
+                // for sources that never report a tier (non-NetEase) and for the
+                // window between picking a tier and the re-resolve finishing.
+                // PlaybackState.audioQuality is a display label by this point, so
+                // it must be parsed as a label rather than as a raw level.
+                effectiveQualityState = state.audioQuality
+                    ?.let(AudioQualityPolicy::fromLevelOrLabel)
+                    ?: PlaybackQualityOverride.level?.let(AudioQualityPolicy::fromLevel)
                 val track = state.currentTrack
                 if (track?.id != loadedTrackId) {
                     loadedTrackId = track?.id

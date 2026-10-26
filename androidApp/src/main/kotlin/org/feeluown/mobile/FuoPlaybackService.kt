@@ -860,11 +860,57 @@ class FuoPlaybackService : MediaSessionService() {
     private fun Format.toAudioFormatInfo(): AudioFormatInfo {
         val average = averageBitrate.takeIf { it > 0 }?.toLong()
         val peak = peakBitrate.takeIf { it > 0 }?.toLong()
+        val streamInfo = flacStreamInfo(initializationData)
         return AudioFormatInfo(
             format = sampleMimeType ?: containerMimeType,
             codec = codecs,
             averageBitrate = average,
             peakBitrate = peak,
+            sampleRate = sampleRate.takeIf { it > 0 } ?: streamInfo?.sampleRate,
+            channelCount = channelCount.takeIf { it > 0 } ?: streamInfo?.channelCount,
+            bitDepth = pcmBitDepth(pcmEncoding) ?: streamInfo?.bitDepth,
+        )
+    }
+
+    private data class FlacStreamInfo(
+        val sampleRate: Int?,
+        val channelCount: Int?,
+        val bitDepth: Int?,
+    )
+
+    private fun pcmBitDepth(encoding: Int): Int? = when (encoding) {
+        C.ENCODING_PCM_8BIT -> 8
+        C.ENCODING_PCM_16BIT -> 16
+        C.ENCODING_PCM_24BIT -> 24
+        C.ENCODING_PCM_32BIT, C.ENCODING_PCM_FLOAT -> 32
+        else -> null
+    }
+
+    /**
+     * FLAC STREAMINFO crams the sample rate (20 bits), channels (3 bits) and bit
+     * depth (5 bits) into one 34-byte block, which the extractor hands over as
+     * initialization data. Media3 does not surface the bit depth anywhere else,
+     * so this is the only exact source for FLAC. Both the bare block and one
+     * prefixed with the "fLaC" marker plus metadata header are accepted.
+     */
+    private fun flacStreamInfo(initializationData: List<ByteArray>): FlacStreamInfo? {
+        val data = initializationData.firstOrNull() ?: return null
+        val hasMarker = data.size >= 42 &&
+            data[0] == 0x66.toByte() && data[1] == 0x4C.toByte() &&
+            data[2] == 0x61.toByte() && data[3] == 0x43.toByte()
+        val offset = if (hasMarker) 8 else 0
+        if (data.size < offset + 34) return null
+        val b10 = data[offset + 10].toInt() and 0xFF
+        val b11 = data[offset + 11].toInt() and 0xFF
+        val b12 = data[offset + 12].toInt() and 0xFF
+        val b13 = data[offset + 13].toInt() and 0xFF
+        val sampleRate = (b10 shl 12) or (b11 shl 4) or (b12 ushr 4)
+        val channels = ((b12 ushr 1) and 0x07) + 1
+        val bitsPerSample = (((b12 and 0x01) shl 4) or (b13 ushr 4)) + 1
+        return FlacStreamInfo(
+            sampleRate = sampleRate.takeIf { it > 0 },
+            channelCount = channels,
+            bitDepth = bitsPerSample.takeIf { it in 4..32 },
         )
     }
 

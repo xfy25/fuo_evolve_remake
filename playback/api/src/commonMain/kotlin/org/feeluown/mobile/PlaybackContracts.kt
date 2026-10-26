@@ -38,6 +38,19 @@ enum class AudioQualityPolicy(
     companion object {
         fun fromLevel(level: String?): AudioQualityPolicy? =
             entries.firstOrNull { it.level == level }
+
+        /**
+         * Resolves a tier from either the provider-native level or the display
+         * label produced by `normalizedAudioQualityLabel`.
+         *
+         * `PlaybackState.audioQuality` is normalized before it reaches the UI, so
+         * the player picker only ever sees labels like "无损" / "Hi-Res"; parsing
+         * them as raw levels always fails and made the menu mark the requested
+         * tier instead of the one actually playing.
+         */
+        fun fromLevelOrLabel(value: String?): AudioQualityPolicy? =
+            fromLevel(value)
+                ?: entries.firstOrNull { it.label.equals(value, ignoreCase = true) }
     }
 }
 
@@ -166,4 +179,8 @@ data class AudioFormatInfo(
     val codec: String? = null,
     val averageBitrate: Long? = null,
     val peakBitrate: Long? = null,
+    val sampleRate: Int? = null,
+    val channelCount: Int? = null,
+    /** Bits per sample; parsed from FLAC STREAMINFO or derived from PCM encoding. */
+    val bitDepth: Int? = null,
 )

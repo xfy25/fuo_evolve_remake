@@ -119,7 +119,18 @@ class KotlinProviderRepository :
         val providerId = track.source.ifBlank {
             splitResourceId(track.providerId ?: track.id).first
         }
-        return providerMap[providerId]?.value?.resolve(track, quality)
+        val payload = providerMap[providerId]?.value?.resolve(track, quality)
+        if (payload != null) {
+            // The player chip shows what the provider granted, which can be a
+            // step below the requested tier. Keep one line so downgrades are
+            // diagnosable from the in-app debug log (host only, no query string).
+            AppLogger.i(
+                "PlaybackResolve",
+                "provider=$providerId requested=$quality granted=${payload.audioQuality.orEmpty()} " +
+                    "host=${payload.url.substringAfter("://").substringBefore('/')}",
+            )
+        }
+        return payload
     }
 
     override suspend fun lyrics(track: MusicTrack): String? {

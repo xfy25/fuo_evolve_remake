@@ -34,10 +34,13 @@ fun AudioFormatInfoDialog(
         title = { Text("音频信息") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                info?.format?.takeIf { it.isNotBlank() }?.let { ReplacementInfoLine("当前格式", it) }
+                formatAudioBitrate(info?.averageBitrate)?.let { ReplacementInfoLine("码率", it) }
+                formatSampleRate(info?.sampleRate)?.let { ReplacementInfoLine("采样率", it) }
+                formatBitDepth(info?.bitDepth)?.let { ReplacementInfoLine("位深", it) }
+                formatChannelCount(info?.channelCount)?.let { ReplacementInfoLine("声道", it) }
+                info?.format?.takeIf { it.isNotBlank() }?.let { ReplacementInfoLine("格式", it) }
                 info?.codec?.takeIf { it.isNotBlank() }?.let { ReplacementInfoLine("编码", it) }
-                formatAudioBitrate(info?.averageBitrate)?.let { ReplacementInfoLine("平均比特率", it) }
-                formatAudioBitrate(info?.peakBitrate)?.let { ReplacementInfoLine("峰值比特率", it) }
+                formatAudioBitrate(info?.peakBitrate)?.let { ReplacementInfoLine("峰值码率", it) }
                 decoderInfo?.let { decoder ->
                     ReplacementInfoLine(
                         "解码方式",
@@ -61,13 +64,33 @@ fun AudioFormatInfo.hasDisplayableValue(): Boolean {
     return !format.isNullOrBlank() ||
         !codec.isNullOrBlank() ||
         formatAudioBitrate(averageBitrate) != null ||
-        formatAudioBitrate(peakBitrate) != null
+        formatAudioBitrate(peakBitrate) != null ||
+        formatSampleRate(sampleRate) != null ||
+        formatChannelCount(channelCount) != null ||
+        formatBitDepth(bitDepth) != null
 }
 
 fun formatAudioBitrate(value: Long?): String? {
     if (value == null || value <= 0) return null
     return "${(value / 1_000.0).roundToInt()} kbps"
 }
+
+fun formatSampleRate(value: Int?): String? {
+    if (value == null || value <= 0) return null
+    val khz = (value / 100.0).roundToInt() / 10.0
+    val text = if (khz == khz.toInt().toDouble()) khz.toInt().toString() else khz.toString()
+    return "$text kHz"
+}
+
+fun formatChannelCount(value: Int?): String? = when {
+    value == null || value <= 0 -> null
+    value == 1 -> "单声道"
+    value == 2 -> "立体声"
+    else -> "$value 声道"
+}
+
+fun formatBitDepth(value: Int?): String? =
+    value?.takeIf { it > 0 }?.let { "$it bit" }
 
 @Composable
 fun InfoTag(text: String, onClick: (() -> Unit)? = null) {

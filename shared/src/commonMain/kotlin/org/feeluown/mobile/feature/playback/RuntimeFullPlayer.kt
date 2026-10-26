@@ -452,7 +452,13 @@ private fun RuntimePlayerInfoTags(track: MusicTrack?) {
             // identical everywhere and renders MeloX tiers as 无损 / Hi-Res.
             Box {
                 InfoTag(
-                    text = (normalizedAudioQualityLabel(raw, null) ?: raw).uppercase(),
+                    // Keep the chip and the menu on the same vocabulary: when the
+                    // value maps to a tier, show that tier's label verbatim.
+                    text = (
+                        AudioQualityPolicy.fromLevelOrLabel(raw)?.label
+                            ?: normalizedAudioQualityLabel(raw, null)
+                            ?: raw
+                        ).uppercase(),
                     onClick = when {
                         quality.isSupported -> ({ qualityMenuExpanded = true })
                         canShowAudioInfo -> ({ showAudioFormatInfo = true })

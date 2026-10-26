@@ -41,6 +41,18 @@ class AndroidNativeAudioEngine(
     override val state: StateFlow<PlaybackState> = mutableState.asStateFlow()
     override val resolvesResourcesInternally: Boolean = true
 
+    /**
+     * The provider reports the tier it granted, but a stream that is really
+     * 24-bit or above 48 kHz is hi-res by definition. Labelling such a stream
+     * "无损" made the player chip contradict what is actually playing.
+     */
+    private fun qualityLabelFor(raw: String?, formatInfo: AudioFormatInfo?): String? {
+        val label = normalizedAudioQualityLabel(raw, formatInfo)
+        val provenHiRes = formatInfo != null &&
+            ((formatInfo.bitDepth ?: 0) > 16 || (formatInfo.sampleRate ?: 0) > 48_000)
+        return if (provenHiRes && label == "无损") "Hi-Res" else label
+    }
+
     init {
         connectController()
         scope.launch {
@@ -51,7 +63,7 @@ class AndroidNativeAudioEngine(
         scope.launch {
             FuoPlaybackService.audioFormatInfo.collect { audioFormatInfo ->
                 mutableState.value = mutableState.value.copy(
-                    audioQuality = normalizedAudioQualityLabel(rawAudioQuality, audioFormatInfo),
+                    audioQuality = qualityLabelFor(rawAudioQuality, audioFormatInfo),
                     audioFormatInfo = audioFormatInfo,
                 )
             }
@@ -111,7 +123,7 @@ class AndroidNativeAudioEngine(
                     } else {
                         serviceState.currentPartIndex
                     },
-                    audioQuality = normalizedAudioQualityLabel(rawAudioQuality, audioFormatInfo),
+                    audioQuality = qualityLabelFor(rawAudioQuality, audioFormatInfo),
                     audioDecoderInfo = currentState.audioDecoderInfo,
                     audioFormatInfo = audioFormatInfo,
                 )
@@ -447,7 +459,7 @@ class AndroidNativeAudioEngine(
             },
             audioDecoderInfo = mutableState.value.audioDecoderInfo,
             audioFormatInfo = audioFormatInfo,
-            audioQuality = normalizedAudioQualityLabel(rawAudioQuality, audioFormatInfo),
+            audioQuality = qualityLabelFor(rawAudioQuality, audioFormatInfo),
         )
     }
 
