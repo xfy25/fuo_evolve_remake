@@ -61,7 +61,7 @@ class YtMusicPlaybackProviderTest {
             poTokenProvider = { null },
         )
 
-        val payload = extractor.resolve(track(), AudioQualityPolicy.High.policy)
+        val payload = extractor.resolve(track(), AudioQualityPolicy.High.level)
 
         assertEquals("https://cdn.example/vision.m4a", payload?.url)
         assertTrue(payload?.headers.isNullOrEmpty())
@@ -102,7 +102,7 @@ class YtMusicPlaybackProviderTest {
             poTokenProvider = { null },
         )
 
-        val payload = extractor.resolve(track(), AudioQualityPolicy.High.policy)
+        val payload = extractor.resolve(track(), AudioQualityPolicy.High.level)
 
         assertEquals("https://cdn.example/tv.m4a", payload?.url)
         assertTrue(requests.any { it.url == "https://cdn.example/blocked.m4a" })
@@ -131,7 +131,7 @@ class YtMusicPlaybackProviderTest {
             poTokenProvider = { null },
         )
 
-        val payload = extractor.resolve(track(), AudioQualityPolicy.High.policy)
+        val payload = extractor.resolve(track(), AudioQualityPolicy.High.level)
 
         assertNotNull(payload)
         assertEquals("https://manifest.example/audio.m3u8", payload.url)

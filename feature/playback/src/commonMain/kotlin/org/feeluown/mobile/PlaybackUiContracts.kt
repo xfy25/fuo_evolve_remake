@@ -33,6 +33,21 @@ interface PlaybackNavigationPort {
     fun toggleQueue()
 }
 
+/**
+ * Quality tiers for the active track plus a session-scoped switch action.
+ *
+ * [availableQualities] is null when the source cannot report a catalog
+ * (non-NetEase, unsigned session, request failure). Callers must treat null as
+ * "unknown" and leave every tier enabled.
+ */
+interface PlaybackQualityPort {
+    /** False when this platform does not wire the picker; the chip stays display-only. */
+    val isSupported: Boolean
+    val availableQualities: Set<AudioQualityPolicy>?
+    val effectiveQuality: AudioQualityPolicy?
+    fun switchQuality(quality: AudioQualityPolicy)
+}
+
 /** Queue state and queue-edit actions owned by the playback feature. */
 interface PlaybackQueueUiPort {
     val currentQueueTrack: MusicTrack?

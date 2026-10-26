@@ -15,6 +15,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import org.feeluown.mobile.AudioQualityPolicy
 import org.feeluown.mobile.MediaRef
 import org.feeluown.mobile.MediaRefType
 import org.feeluown.mobile.MusicTrack
@@ -416,6 +417,17 @@ abstract class BaseKotlinProvider(
     protected companion object {
         const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
     }
+}
+
+/**
+ * Optional capability: report which quality tiers a resource actually exists in.
+ *
+ * Returns `null` when the provider cannot answer (unsigned API, unsupported
+ * source, network failure). Callers must treat `null` as "unknown" and must not
+ * disable options based on it.
+ */
+interface ProviderQualityAvailabilityCapability {
+    suspend fun qualityAvailability(identifier: String): Set<AudioQualityPolicy>?
 }
 
 /** SPI implemented by concrete providers. */

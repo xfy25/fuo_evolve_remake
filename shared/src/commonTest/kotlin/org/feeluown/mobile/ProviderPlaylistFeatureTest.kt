@@ -198,7 +198,7 @@ class ProviderPlaylistFeatureTest {
                                     """{"code":200,"data":[{"id":456,"name":"私人 FM 歌曲","artists":[{"id":9,"name":"FM 歌手"}],"album":{"id":10,"name":"FM 专辑","picUrl":"https://example.test/fm-cover.jpg"},"duration":240000}]}""",
                                 )
                             }
-                            "/weapi/song/enhance/player/url" -> {
+                            "/weapi/song/enhance/player/url/v1" -> {
                                 assertEquals("POST", request.method.value)
                                 respond(
                                     """{"code":200,"data":[{"id":456,"url":"https://example.test/fm.mp3","br":320000,"type":"mp3","time":240000,"freeTrialInfo":null}]}""",
@@ -223,7 +223,7 @@ class ProviderPlaylistFeatureTest {
             0,
             50,
         )
-        val payload = provider.resolve(section.tracks.single(), AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(section.tracks.single(), AudioQualityPolicy.High.level)
 
         assertFalse(section.isLoginRequired)
         assertEquals("私人 FM 歌曲", section.tracks.single().title)
@@ -798,7 +798,7 @@ class ProviderPlaylistFeatureTest {
             HttpClient(MockEngine) {
                 engine {
                     addHandler { request ->
-                        assertEquals("/weapi/song/enhance/player/url", request.url.encodedPath)
+                        assertEquals("/weapi/song/enhance/player/url/v1", request.url.encodedPath)
                         respond(
                             """{"code":200,"data":[{"id":456,"url":"https://example.test/preview.mp3","freeTrialInfo":{"start":0,"end":30},"time":180000}]}""",
                         )
@@ -817,7 +817,7 @@ class ProviderPlaylistFeatureTest {
             providerId = "netease:456",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals(null, payload)
         client.close()
@@ -830,8 +830,8 @@ class ProviderPlaylistFeatureTest {
                 engine {
                     addHandler { request ->
                         when (request.url.encodedPath) {
-                            "/weapi/song/enhance/player/url" -> respond(
-                                """{"code":200,"data":[{"id":456,"url":"https://example.test/song.mp3","freeTrialInfo":null,"time":180000,"type":"mp3"}]}""",
+                            "/weapi/song/enhance/player/url/v1" -> respond(
+                                """{"code":200,"data":[{"id":456,"url":"https://example.test/song.mp3","freeTrialInfo":null,"time":180000,"type":"mp3","level":"exhigh"}]}""",
                             )
                             else -> error("lyric request should be best effort: ${request.url.encodedPath}")
                         }
@@ -850,9 +850,10 @@ class ProviderPlaylistFeatureTest {
             providerId = "netease:456",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals("https://example.test/song.mp3", payload?.url)
+        assertEquals("exhigh", payload?.audioQuality)
         assertEquals(null, payload?.lyrics)
         client.close()
     }
@@ -983,7 +984,7 @@ class ProviderPlaylistFeatureTest {
                 engine {
                     addHandler { request ->
                         when (request.url.encodedPath) {
-                            "/weapi/song/enhance/player/url" -> respond(
+                            "/weapi/song/enhance/player/url/v1" -> respond(
                                 """{"code":200,"data":[{"id":456,"url":null,"freeTrialInfo":{"start":0,"end":30},"time":180000,"type":"mp3"}]}""",
                             )
                             "/api/song/lyric" -> {
@@ -1060,7 +1061,7 @@ class ProviderPlaylistFeatureTest {
                     addHandler { request ->
                         requestedPaths += request.url.encodedPath
                         when (request.url.encodedPath) {
-                            "/weapi/song/enhance/player/url" -> error("should not resolve original NetEase media first")
+                            "/weapi/song/enhance/player/url/v1" -> error("should not resolve original NetEase media first")
                             "/x/web-interface/view" -> {
                                 assertEquals("BVdemo", request.url.parameters["bvid"])
                                 respond(
@@ -1113,7 +1114,7 @@ class ProviderPlaylistFeatureTest {
         assertEquals("https://example.test/bilibili.m4s", payload.url)
         assertEquals("netease", payload.originalSource)
         assertEquals("bilibili:BVdemo", payload.replacementId)
-        assertTrue("/weapi/song/enhance/player/url" !in requestedPaths)
+        assertTrue("/weapi/song/enhance/player/url/v1" !in requestedPaths)
         client.close()
     }
 
@@ -1124,7 +1125,7 @@ class ProviderPlaylistFeatureTest {
                 engine {
                     addHandler { request ->
                         when (request.url.encodedPath) {
-                            "/weapi/song/enhance/player/url" -> respond(
+                            "/weapi/song/enhance/player/url/v1" -> respond(
                                 """{"code":200,"data":[{"id":456,"url":"https://example.test/song.mp3","freeTrialInfo":null,"time":180000,"type":"mp3"}]}""",
                             )
                             "/api/song/lyric" -> error("lyric must not block resolve")
@@ -1145,7 +1146,7 @@ class ProviderPlaylistFeatureTest {
             providerId = "netease:456",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals("https://example.test/song.mp3", payload?.url)
         assertEquals(null, payload?.lyrics)
@@ -1191,7 +1192,7 @@ class ProviderPlaylistFeatureTest {
             providerId = "qqmusic:qq-mid",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals(null, payload)
         assertTrue(requestedData.any { it.contains("M800media-mid.mp3") })
@@ -1235,7 +1236,7 @@ class ProviderPlaylistFeatureTest {
             providerId = "qqmusic:qq-mid",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals("http://isure.stream.qqmusic.qq.com/audio/path.mp3", payload?.url)
         assertEquals("LQ", payload?.audioQuality)

@@ -44,7 +44,7 @@ internal class YtMusicPlaybackProvider(
     override suspend fun videoPlaybackPayload(video: ProviderVideo): VideoPlaybackPayload {
         val videoId = splitResourceId(video.id, "video").second
         val track = delegate.trackDetail(videoId) ?: return VideoPlaybackPayload(video = video)
-        val payload = resolve(track, AudioQualityPolicy.High.policy)
+        val payload = resolve(track, AudioQualityPolicy.High.level)
             ?: return VideoPlaybackPayload(video = video)
         return VideoPlaybackPayload(
             video = video,
@@ -379,8 +379,7 @@ internal class YtMusicPlaybackExtractor(
                 .thenByDescending { it.bitrate },
         )
         val orderedDirect = when (qualityPolicy) {
-            AudioQualityPolicy.Low.policy -> direct.sortedBy { it.bitrate }
-            AudioQualityPolicy.Standard.policy -> {
+            AudioQualityPolicy.Standard.level -> {
                 if (direct.size <= 2) direct
                 else {
                     val center = direct.size / 2

@@ -948,10 +948,11 @@ class QQMusicProvider(
         val low = QqAudioQuality("lq", "M500", "mp3", "LQ")
         val all = listOf(flac, ape, high, standard, low)
         val ordered = when (policy) {
-            AudioQualityPolicy.Highest.policy -> listOf(flac, ape, high, standard, low)
-            AudioQualityPolicy.High.policy -> listOf(high, flac, ape, standard, low)
-            AudioQualityPolicy.Standard.policy -> listOf(standard, high, flac, ape, low)
-            AudioQualityPolicy.Low.policy -> listOf(low, standard, high, flac, ape)
+            AudioQualityPolicy.HiRes.level,
+            AudioQualityPolicy.Lossless.level,
+            -> listOf(flac, ape, high, standard, low)
+            AudioQualityPolicy.High.level -> listOf(high, flac, ape, standard, low)
+            AudioQualityPolicy.Standard.level -> listOf(standard, high, flac, ape, low)
             else -> listOf(high, flac, ape, standard, low)
         }
         val available = all.filter { quality ->

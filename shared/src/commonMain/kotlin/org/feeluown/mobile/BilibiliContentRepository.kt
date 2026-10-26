@@ -122,6 +122,7 @@ class FuoProviderGraph internal constructor(
     val content: ProviderContentRepository,
     val playbackSource: PlaybackProviderSourcePort,
     val audioQuality: ProviderAudioQualityPort,
+    val qualityAvailability: ProviderQualityAvailabilityPort,
 ) {
     internal suspend fun clearMemoryCache() = http.clearMemoryCache()
 }
@@ -144,5 +145,6 @@ fun createFuoProviderGraph(
         content = content,
         playbackSource = base,
         audioQuality = base,
+        qualityAvailability = base,
     )
 }

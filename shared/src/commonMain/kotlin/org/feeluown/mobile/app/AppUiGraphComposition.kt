@@ -11,6 +11,7 @@ internal fun createPlaybackUiGraph(
     localMusicActions: LocalMusicActionPort,
     lyrics: PlaybackLyricsPort,
     replacement: ReplacementActionPort,
+    quality: PlaybackQualityPort = UnsupportedPlaybackQualityPort,
 ): PlaybackUiGraph = PlaybackUiGraph(
     navigation = navigation,
     presentation = presentation,
@@ -22,6 +23,7 @@ internal fun createPlaybackUiGraph(
     localMusicActions = localMusicActions,
     lyrics = lyrics,
     replacement = replacement,
+    quality = quality,
 )
 
 internal fun createProviderDetailUiGraph(

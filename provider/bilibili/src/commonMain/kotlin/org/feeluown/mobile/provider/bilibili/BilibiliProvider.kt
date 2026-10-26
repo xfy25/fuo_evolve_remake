@@ -219,7 +219,7 @@ class BilibiliProvider(
         )
         val videoStream = videoStreams.firstOrNull()
         val audio = selectAudio(
-            qualityPolicy = AudioQualityPolicy.High.policy,
+            qualityPolicy = AudioQualityPolicy.High.level,
             audio = dash?.array("audio").orEmpty().mapNotNull { it.asObject().toAudioStream() },
             flac = dash?.obj("flac")?.obj("audio")?.toAudioStream(isFlac = true),
         )

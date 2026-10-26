@@ -85,8 +85,7 @@ class YtMusicProvider(
             .ifEmpty { formats }
             .sortedByDescending { it.int("bitrate") ?: 0 }
         val selected = when (qualityPolicy) {
-            AudioQualityPolicy.Low.policy -> preferred.lastOrNull()
-            AudioQualityPolicy.Standard.policy -> preferred.getOrNull(preferred.size / 2) ?: preferred.lastOrNull()
+            AudioQualityPolicy.Standard.level -> preferred.getOrNull(preferred.size / 2) ?: preferred.lastOrNull()
             else -> preferred.firstOrNull()
         } ?: return null
         val directUrl = selected.stringOrNull("url")
@@ -181,7 +180,7 @@ class YtMusicProvider(
 
     override suspend fun videoPlaybackPayload(video: ProviderVideo): VideoPlaybackPayload {
         val track = trackDetail(splitResourceId(video.id, "video").second) ?: return VideoPlaybackPayload(video = video)
-        val payload = resolve(track, AudioQualityPolicy.High.policy) ?: return VideoPlaybackPayload(video = video)
+        val payload = resolve(track, AudioQualityPolicy.High.level) ?: return VideoPlaybackPayload(video = video)
         return VideoPlaybackPayload(video = video, url = payload.url, audioUrl = payload.url, headers = payload.headers, quality = payload.audioQuality)
     }
 

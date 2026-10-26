@@ -6,6 +6,7 @@ import org.feeluown.mobile.provider.core.InMemoryProviderCredentialStore
 import org.feeluown.mobile.provider.core.KotlinMusicProvider
 import org.feeluown.mobile.provider.core.ProviderCredentialStore
 import org.feeluown.mobile.provider.core.ProviderDeviceAuthorizationCapability
+import org.feeluown.mobile.provider.core.ProviderQualityAvailabilityCapability
 import org.feeluown.mobile.provider.core.splitResourceId
 import org.feeluown.mobile.provider.core.network.ProviderHttpClient
 import org.feeluown.mobile.provider.core.network.ProviderPersistentCache
@@ -23,7 +24,8 @@ class KotlinProviderRepository :
     ProviderLibraryRepository,
     ProviderPlaybackReportingRepository,
     PlaybackProviderSourcePort,
-    ProviderAudioQualityPort {
+    ProviderAudioQualityPort,
+    ProviderQualityAvailabilityPort {
     private val stateMutex = Mutex()
     private val http: ProviderHttpClient
     private val credentials: ProviderCredentialStore
@@ -112,7 +114,8 @@ class KotlinProviderRepository :
 
     override suspend fun resolveTrack(track: MusicTrack): PlaybackPayload? {
         initialize()
-        val quality = if (isCellularConnection()) cellularAudioQualityPolicy.policy else wifiAudioQualityPolicy.policy
+        val quality = PlaybackQualityOverride.level
+            ?: if (isCellularConnection()) cellularAudioQualityPolicy.level else wifiAudioQualityPolicy.level
         val providerId = track.source.ifBlank {
             splitResourceId(track.providerId ?: track.id).first
         }
@@ -197,6 +200,18 @@ class KotlinProviderRepository :
     override suspend fun updateAudioQualityPolicies(wifiPolicy: AudioQualityPolicy, cellularPolicy: AudioQualityPolicy) {
         wifiAudioQualityPolicy = wifiPolicy
         cellularAudioQualityPolicy = cellularPolicy
+        // Settings always wins over a player-level override.
+        PlaybackQualityOverride.clear()
+    }
+
+    override suspend fun availableQualities(track: MusicTrack): Set<AudioQualityPolicy>? {
+        initialize()
+        val providerId = track.source.ifBlank { splitResourceId(track.providerId ?: track.id).first }
+        val capability = providerMap[providerId]?.value as? ProviderQualityAvailabilityCapability
+            ?: return null
+        val identifier = splitResourceId(track.providerId ?: track.id).second
+            .ifBlank { track.id.substringAfterLast(':') }
+        return capability.qualityAvailability(identifier)
     }
 
     override suspend fun reportPlayback(providerId: String, report: ProviderPlaybackReport) {

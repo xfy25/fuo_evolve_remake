@@ -25,20 +25,17 @@ internal fun selectAudio(
     audio: List<AudioStream>,
     flac: AudioStream?,
 ): SelectedAudio? {
-    if (qualityPolicy == AudioQualityPolicy.Highest.policy && flac != null) {
+    if ((qualityPolicy == AudioQualityPolicy.HiRes.level || qualityPolicy == AudioQualityPolicy.Lossless.level) && flac != null) {
         return SelectedAudio(flac, "SHQ")
     }
     val sorted = audio.sortedByDescending { it.bandwidth }
     val preferred = when (qualityPolicy) {
-        AudioQualityPolicy.Low.policy -> sorted.filter {
-            it.bandwidth <= BilibiliProviderDefinition.AUDIO_LOW_MAX_BANDWIDTH
-        }
-        AudioQualityPolicy.Standard.policy -> sorted.filter {
+        AudioQualityPolicy.Standard.level -> sorted.filter {
             it.bandwidth <= BilibiliProviderDefinition.AUDIO_STANDARD_MAX_BANDWIDTH
         }
         else -> sorted
     }
-    val fallback = if (qualityPolicy == AudioQualityPolicy.Low.policy) sorted.lastOrNull() else sorted.firstOrNull()
+    val fallback = sorted.firstOrNull()
     val selected = preferred.firstOrNull() ?: fallback ?: flac ?: return null
     return SelectedAudio(selected, selected.qualityLabel())
 }

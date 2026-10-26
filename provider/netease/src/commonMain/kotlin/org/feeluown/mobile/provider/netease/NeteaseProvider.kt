@@ -1,7 +1,9 @@
 package org.feeluown.mobile.provider.netease
 
 import io.ktor.http.Parameters
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -31,6 +33,7 @@ import org.feeluown.mobile.providerBusinessException
 import org.feeluown.mobile.providerContractException
 import org.feeluown.mobile.provider.core.BaseKotlinProvider
 import org.feeluown.mobile.provider.core.KotlinMusicProvider
+import org.feeluown.mobile.provider.core.ProviderQualityAvailabilityCapability
 import org.feeluown.mobile.provider.core.ProviderCredentials
 import org.feeluown.mobile.provider.core.ProviderCredentialStore
 import org.feeluown.mobile.provider.core.array
@@ -60,7 +63,7 @@ class NeteaseProvider(
     info = INFO,
     capabilities = CAPABILITIES,
     features = FEATURES,
-), KotlinMusicProvider {
+), KotlinMusicProvider, ProviderQualityAvailabilityCapability {
     private val featureLoader by lazy {
         NeteaseFeatureLoader(
             NeteaseFeatureContext(
@@ -122,31 +125,96 @@ class NeteaseProvider(
 
     override suspend fun trackDetail(identifier: String) = songDetail(rawIdentifier(identifier))?.let { song(it) }
 
+    /**
+     * Requests the provider-native `level` (MeloX quality model), walking the
+     * tier fallback chain and keeping the BEST tier the server is willing to
+     * grant rather than the first one that answers.
+     *
+     * Accepting the first answer is not enough: asking for `lossless` on an
+     * account without that entitlement can come back with a playable
+     * `standard` stream, while `exhigh` (320 kbps) would have been granted a
+     * step later. So a downgraded answer is remembered and the walk continues;
+     * it stops as soon as a candidate is granted at its own tier.
+     *
+     * Candidates at or below the best tier already obtained are skipped, which
+     * bounds the worst case at one request per tier minus the redundant last
+     * one instead of re-asking for something we already hold.
+     *
+     * The payload reports the level the server actually returned.
+     */
     override suspend fun resolve(track: org.feeluown.mobile.MusicTrack, qualityPolicy: String): PlaybackPayload? {
         val (_, identifier) = splitResourceId(track.providerId ?: track.id)
         val id = identifier.ifBlank { track.id.substringAfterLast(':') }
         val credentials = currentCredentials()
-        val bitrate = qualityPolicy.toNeteaseBitrate()
-        val root = neteaseWeApiPost(
-            "$BASE/weapi/song/enhance/player/url",
-            """{"ids":[$id],"br":$bitrate,"csrf_token":"${credentials?.cookies?.get("__csrf").orEmpty().jsonString()}"}""",
-        )
-        val data = root.array("data").firstOrNull()?.asObject() ?: return null
-        if (data["freeTrialInfo"]?.let { it !is JsonNull } == true) return null
-        val url = data.stringOrNull("url") ?: return null
-        return PlaybackPayload(
-            url = url,
-            title = track.title,
-            artists = track.artists,
-            album = track.album,
-            source = ID,
-            headers = mapOf("Referer" to "https://music.163.com/"),
-            coverUrl = track.coverUrl,
-            durationMs = data.long("time") ?: track.durationMs,
-            audioQuality = data.stringOrNull("type") ?: qualityPolicy,
-            providerName = NAME,
-        )
+        val csrf = credentials?.cookies?.get("__csrf").orEmpty().jsonString()
+        val requested = AudioQualityPolicy.fromLevel(qualityPolicy) ?: AudioQualityPolicy.High
+        var bestPayload: PlaybackPayload? = null
+        var bestTier = -1
+        for (candidate in requested.fallbackLevels) {
+            if (candidate.ordinal <= bestTier) continue
+            val data = runCatching {
+                neteaseWeApiPost(
+                    "$BASE/weapi/song/enhance/player/url/v1",
+                    """{"ids":[$id],"level":"${candidate.level}","encodeType":"flac","csrf_token":"$csrf"}""",
+                ).array("data").firstOrNull()?.asObject()
+            }
+                // Never let a candidate failure swallow coroutine cancellation:
+                // the queue would otherwise keep issuing requests after the
+                // caller has already moved on to another track.
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrNull() ?: continue
+            if (data.isPreviewSource()) continue
+            val url = data.stringOrNull("url") ?: continue
+            val actual = AudioQualityPolicy.fromLevel(data.stringOrNull("level")) ?: candidate
+            val payload = PlaybackPayload(
+                url = url,
+                title = track.title,
+                artists = track.artists,
+                album = track.album,
+                source = ID,
+                headers = mapOf("Referer" to "https://music.163.com/"),
+                coverUrl = track.coverUrl,
+                durationMs = data.long("time") ?: track.durationMs,
+                audioQuality = actual.level,
+                providerName = NAME,
+            )
+            // Granted at the requested tier (or better): nothing above is left.
+            if (actual.ordinal >= requested.ordinal) return payload
+            if (actual.ordinal > bestTier) {
+                bestPayload = payload
+                bestTier = actual.ordinal
+            }
+        }
+        return bestPayload
     }
+
+    /**
+     * Catalog-level availability for the MeloX tiers, read from `/v3/song/detail`:
+     * `l` = standard, `h` = exhigh, `sq` = lossless, `hr` = hires. A missing or
+     * null entry means the resource does not exist. Any failure returns null so
+     * callers treat availability as unknown instead of disabling options.
+     */
+    override suspend fun qualityAvailability(identifier: String): Set<AudioQualityPolicy>? {
+        val id = splitResourceId(identifier).second.ifBlank { identifier.substringAfterLast(':') }
+        if (id.toLongOrNull() == null) return null
+        val song = runCatching {
+            neteaseWeApiPost(
+                "$BASE/weapi/v3/song/detail",
+                """{"c":"[{\"id\":$id}]","csrf_token":"${csrfToken().jsonString()}"}""",
+            ).array("songs").firstOrNull()?.asObject()
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull() ?: return null
+        return buildSet {
+            if (song.hasQualityResource("l")) add(AudioQualityPolicy.Standard)
+            if (song.hasQualityResource("h")) add(AudioQualityPolicy.High)
+            if (song.hasQualityResource("sq")) add(AudioQualityPolicy.Lossless)
+            if (song.hasQualityResource("hr")) add(AudioQualityPolicy.HiRes)
+        }
+    }
+
+    private fun JsonObject.hasQualityResource(key: String): Boolean =
+        this[key].let { it != null && it !is JsonNull }
 
     override suspend fun lyrics(track: org.feeluown.mobile.MusicTrack): String? {
         val (_, identifier) = splitResourceId(track.providerId ?: track.id)
@@ -1013,12 +1081,16 @@ class NeteaseProvider(
     private fun mutation(root: JsonObject, successMessage: String): ProviderMutationResult =
         ProviderMutationResult(root.int("code") == 200 || root.boolean("success"), if (root.int("code") == 200) successMessage else root.string("message").ifBlank { "操作失败" })
 
-    private fun String.toNeteaseBitrate(): Int = when (this) {
-        AudioQualityPolicy.Highest.policy -> 999_000
-        AudioQualityPolicy.High.policy -> 320_000
-        AudioQualityPolicy.Standard.policy -> 192_000
-        AudioQualityPolicy.Low.policy -> 128_000
-        else -> 320_000
+    /**
+     * A 30-second preview is signalled by a non-empty `freeTrialInfo`. Mirrors
+     * MeloX `isPreviewSource`: an empty object/array means "no trial", while a
+     * string or any other value still means the payload must not be played.
+     */
+    private fun JsonObject.isPreviewSource(): Boolean = when (val trial = this["freeTrialInfo"]) {
+        null, is JsonNull -> false
+        is JsonArray -> trial.isNotEmpty()
+        is JsonObject -> trial.isNotEmpty()
+        else -> true
     }
 
     private fun String.jsonString(): String = replace("\\", "\\\\").replace("\"", "\\\"")

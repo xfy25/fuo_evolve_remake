@@ -148,29 +148,29 @@ class BilibiliProviderTest {
             durationMs = 265_000,
         )
 
-        val low = provider.resolve(track, AudioQualityPolicy.Low.policy)
-        val standard = provider.resolve(track, AudioQualityPolicy.Standard.policy)
-        val high = provider.resolve(track, AudioQualityPolicy.High.policy)
-        val highest = provider.resolve(track, AudioQualityPolicy.Highest.policy)
+        val standard = provider.resolve(track, AudioQualityPolicy.Standard.level)
+        val high = provider.resolve(track, AudioQualityPolicy.High.level)
+        val lossless = provider.resolve(track, AudioQualityPolicy.Lossless.level)
+        val hires = provider.resolve(track, AudioQualityPolicy.HiRes.level)
 
-        assertEquals("https://example.test/lq.m4s", low?.url)
-        assertEquals("LQ", low?.audioQuality)
         assertEquals("https://example.test/sq.m4s", standard?.url)
         assertEquals("SQ", standard?.audioQuality)
         assertEquals("https://example.test/hq.m4s", high?.url)
         assertEquals("HQ", high?.audioQuality)
-        assertEquals("https://example.test/flac.m4s", highest?.url)
-        assertEquals("SHQ", highest?.audioQuality)
-        assertEquals("https://www.bilibili.com/", highest?.headers?.get("Referer"))
+        assertEquals("https://example.test/flac.m4s", lossless?.url)
+        assertEquals("SHQ", lossless?.audioQuality)
+        assertEquals("https://example.test/flac.m4s", hires?.url)
+        assertEquals("SHQ", hires?.audioQuality)
+        assertEquals("https://www.bilibili.com/", hires?.headers?.get("Referer"))
         assertEquals(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-            highest?.headers?.get("User-Agent"),
+            hires?.headers?.get("User-Agent"),
         )
         assertEquals(
             listOf("bilibili:paged_BVdemo__1", "bilibili:paged_BVdemo__2"),
-            highest?.parts?.map { it.id },
+            hires?.parts?.map { it.id },
         )
-        assertEquals(0, highest?.currentPartIndex)
+        assertEquals(0, hires?.currentPartIndex)
         assertEquals(listOf("123", "123", "123", "123"), playUrlRequests.map { it.first })
 
         client.close()

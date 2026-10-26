@@ -14,6 +14,18 @@ private val LOSSLESS_AUDIO_MARKERS = listOf(
     "lossless",
 )
 
+/**
+ * MeloX-style quality tiers. Providers that speak the MeloX quality model
+ * (currently NetEase) report the tier the server actually returned, and the
+ * player chip shows that tier name verbatim.
+ */
+private val AUDIO_QUALITY_LEVEL_LABELS = mapOf(
+    "standard" to "标准",
+    "exhigh" to "高品质",
+    "lossless" to "无损",
+    "hires" to "Hi-Res",
+)
+
 private val PROVIDER_AUDIO_QUALITY_LABELS = mapOf(
     "shq" to "SHQ",
     "hq" to "HQ",
@@ -53,6 +65,10 @@ fun normalizedAudioQualityLabel(
 ): String? {
     val raw = rawQuality?.trim()?.takeIf(String::isNotEmpty)
     val normalizedRaw = raw?.lowercase()
+
+    // Checked first: "lossless" would otherwise be caught by the lossless
+    // markers below and reported as "SHQ" instead of the MeloX tier name.
+    normalizedRaw?.let(AUDIO_QUALITY_LEVEL_LABELS::get)?.let { return it }
 
     if (isLosslessAudio(normalizedRaw, formatInfo)) return "SHQ"
 

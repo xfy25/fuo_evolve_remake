@@ -373,7 +373,7 @@ class YtMusicProviderTest {
         val provider = YtMusicProvider(providerHttp, store)
 
         val track = provider.trackDetail("vid1")
-        val payload = provider.resolve(track!!, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track!!, AudioQualityPolicy.High.level)
 
         val playerReq = requests.first { it.url.contains("/youtubei/v1/player") }
         assertTrue(playerReq.url.contains("key=AIzaSyTestKey"), playerReq.url)
@@ -422,7 +422,7 @@ class YtMusicProviderTest {
             providerName = "YouTube Music",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals("https://cdn.example/a.m4a", payload?.url)
         assertTrue(payload?.headers.isNullOrEmpty(), "yt-dlp/FeelUOwn path uses empty playback headers")
@@ -480,7 +480,7 @@ class YtMusicProviderTest {
             providerName = "YouTube Music",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals("https://cdn.example/web.m4a", payload?.url)
         assertTrue(requests.any { it.body.contains("VISIONOS") })
@@ -532,7 +532,7 @@ class YtMusicProviderTest {
             providerName = "YouTube Music",
         )
 
-        val payload = provider.resolve(track, AudioQualityPolicy.High.policy)
+        val payload = provider.resolve(track, AudioQualityPolicy.High.level)
 
         assertEquals("https://cdn.example/android.m4a", payload?.url)
         assertTrue(requests.any { it.body.contains("VISIONOS") })

@@ -8,8 +8,8 @@ class SettingsAudioQualityPolicyTest {
     @Test
     fun savedWifiAndCellularPoliciesAreAppliedTogether() = runTest {
         val settings = AppSettings(
-            wifiAudioQualityPolicy = AudioQualityPolicy.Highest,
-            cellularAudioQualityPolicy = AudioQualityPolicy.Low,
+            wifiAudioQualityPolicy = AudioQualityPolicy.HiRes,
+            cellularAudioQualityPolicy = AudioQualityPolicy.Standard,
         )
         var applied: Pair<AudioQualityPolicy, AudioQualityPolicy>? = null
 
@@ -18,6 +18,6 @@ class SettingsAudioQualityPolicyTest {
             applyPolicies = { wifi, cellular -> applied = wifi to cellular },
         )
 
-        assertEquals(AudioQualityPolicy.Highest to AudioQualityPolicy.Low, applied)
+        assertEquals(AudioQualityPolicy.HiRes to AudioQualityPolicy.Standard, applied)
     }
 }

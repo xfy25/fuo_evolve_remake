@@ -24,6 +24,8 @@ data class PlaybackUiGraph(
     val localMusicActions: LocalMusicActionPort,
     val lyrics: PlaybackLyricsPort,
     val replacement: ReplacementActionPort,
+    /** Defaults to a no-op so platforms that do not wire the picker stay display-only. */
+    val quality: PlaybackQualityPort = UnsupportedPlaybackQualityPort,
 ) {
     val isFullPlayerOpen: Boolean
         get() = navigation.isFullPlayerOpen
@@ -63,6 +65,9 @@ val LocalPlaybackLyricsPort = staticCompositionLocalOf<PlaybackLyricsPort> {
 }
 val LocalReplacementActionPort = staticCompositionLocalOf<ReplacementActionPort> {
     error("ReplacementActionPort is not provided")
+}
+val LocalPlaybackQualityPort = staticCompositionLocalOf<PlaybackQualityPort> {
+    error("PlaybackQualityPort is not provided")
 }
 
 /**
@@ -131,6 +136,7 @@ fun ProvideNarrowPlaybackUi(
         LocalLocalMusicActionPort provides graph.localMusicActions,
         LocalPlaybackLyricsPort provides graph.lyrics,
         LocalReplacementActionPort provides observedReplacement,
+        LocalPlaybackQualityPort provides graph.quality,
         content = content,
     )
 }

@@ -60,6 +60,7 @@ fun createAppUiGraph(
     recognitionController: RecognitionFeatureController,
     recognitionAppPort: RecognitionAppPort,
     playlistMigrationFeatureController: PlaylistMigrationFeatureController? = null,
+    playbackQualityPort: PlaybackQualityPort = UnsupportedPlaybackQualityPort,
 ): AppUiGraph = EagerAppUiGraph(
     playbackSession = playbackSession,
     playback = createPlaybackUiGraph(
@@ -73,6 +74,7 @@ fun createAppUiGraph(
         localMusicActions = localMusicActionPort,
         lyrics = playbackLyricsPort,
         replacement = replacementActionPort,
+        quality = playbackQualityPort,
     ),
     providerDetail = createProviderDetailUiGraph(
         owners = providerDetailOwners,

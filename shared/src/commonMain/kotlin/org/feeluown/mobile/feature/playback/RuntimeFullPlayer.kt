@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -72,6 +74,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import org.feeluown.mobile.normalizedAudioQualityLabel
 import org.feeluown.mobile.playback.api.PlaybackSession
 import org.feeluown.mobile.playback.api.PlaybackSessionState
 import org.feeluown.mobile.playback.api.PlaybackSessionStatus
@@ -419,8 +422,10 @@ private fun RuntimePlayerTitleBlock(
 private fun RuntimePlayerInfoTags(track: MusicTrack?) {
     val presentation = LocalPlaybackPresentationPort.current
     val replacement = LocalReplacementActionPort.current
+    val quality = LocalPlaybackQualityPort.current
     var replacementInfoTrack by remember(track?.id) { mutableStateOf<MusicTrack?>(null) }
     var showAudioFormatInfo by remember(track?.id) { mutableStateOf(false) }
+    var qualityMenuExpanded by remember(track?.id) { mutableStateOf(false) }
     val canShowAudioInfo = presentation.audioFormatInfo?.hasDisplayableValue() == true ||
         presentation.audioDecoderInfo != null
 
@@ -441,11 +446,54 @@ private fun RuntimePlayerInfoTags(track: MusicTrack?) {
                 InfoTag(sourceLabel(track, null))
             }
         }
-        presentation.audioQuality?.takeIf { it.isNotBlank() }?.let {
-            InfoTag(
-                text = it.uppercase(),
-                onClick = if (canShowAudioInfo) ({ showAudioFormatInfo = true }) else null,
-            )
+        presentation.audioQuality?.takeIf { it.isNotBlank() }?.let { raw ->
+            // Android/iOS normalize the provider value before it reaches the
+            // player state; desktop does not. Normalizing here keeps the chip
+            // identical everywhere and renders MeloX tiers as 无损 / Hi-Res.
+            Box {
+                InfoTag(
+                    text = (normalizedAudioQualityLabel(raw, null) ?: raw).uppercase(),
+                    onClick = when {
+                        quality.isSupported -> ({ qualityMenuExpanded = true })
+                        canShowAudioInfo -> ({ showAudioFormatInfo = true })
+                        else -> null
+                    },
+                )
+                if (qualityMenuExpanded) {
+                    DropdownMenu(
+                        expanded = true,
+                        onDismissRequest = { qualityMenuExpanded = false },
+                    ) {
+                        AudioQualityPolicy.entries.forEach { tier ->
+                            val knownUnavailable =
+                                quality.availableQualities?.contains(tier) == false
+                            DropdownMenuItem(
+                                enabled = !knownUnavailable,
+                                text = {
+                                    Text(
+                                        if (tier == quality.effectiveQuality) "✓ ${tier.label}"
+                                        else tier.label,
+                                    )
+                                },
+                                onClick = {
+                                    qualityMenuExpanded = false
+                                    quality.switchQuality(tier)
+                                },
+                            )
+                        }
+                        if (canShowAudioInfo) {
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("音频格式详情") },
+                                onClick = {
+                                    qualityMenuExpanded = false
+                                    showAudioFormatInfo = true
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

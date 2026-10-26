@@ -372,6 +372,16 @@ internal class AndroidAppContainer(
         )
     }
 
+    private val playbackQualityPort: PlaybackQualityPort by lazy {
+        DefaultPlaybackQualityPort(
+            playbackState = playbackFeatureOwner.playbackState,
+            availability = providerGraph.qualityAvailability::availableQualities,
+            restartCurrent = playbackFeatureOwner.transport::startCurrent,
+            seekTo = playbackEngine::seekTo,
+            scope = appScope,
+        )
+    }
+
     private val playbackSession: PlaybackSession by lazy(::wirePlaybackRuntime)
 
     val appUiGraph: AppUiGraph by lazy {
@@ -387,6 +397,7 @@ internal class AndroidAppContainer(
             localMusicActionPort = localMusicFeatureController,
             playbackLyricsPort = playbackFeatureOwner.lyrics,
             replacementActionPort = playbackFeatureOwner.replacement,
+            playbackQualityPort = playbackQualityPort,
             debugLogFeatureController = debugLogFeatureController,
             providerCatalogFeatureController = providerCatalogFeatureController,
             providerAuthFeatureController = providerAuthFeatureController,
