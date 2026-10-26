@@ -205,6 +205,11 @@ class NeteaseProvider(
         }
             .onFailure { if (it is CancellationException) throw it }
             .getOrNull() ?: return null
+        // Mirrors MeloX `SongAudioAvailability.isKnown`: when the response
+        // carries none of the quality keys we learned nothing, so report
+        // "unknown" (null) and keep every tier enabled instead of greying out
+        // all four because the resulting set would be empty.
+        if (QUALITY_AVAILABILITY_KEYS.none(song::containsKey)) return null
         return buildSet {
             if (song.hasQualityResource("l")) add(AudioQualityPolicy.Standard)
             if (song.hasQualityResource("h")) add(AudioQualityPolicy.High)
@@ -213,8 +218,8 @@ class NeteaseProvider(
         }
     }
 
-    private fun JsonObject.hasQualityResource(key: String): Boolean =
-        this[key].let { it != null && it !is JsonNull }
+    /** A tier exists only when the key holds a resource object, matching MeloX `optJSONObject`. */
+    private fun JsonObject.hasQualityResource(key: String): Boolean = this[key] is JsonObject
 
     override suspend fun lyrics(track: org.feeluown.mobile.MusicTrack): String? {
         val (_, identifier) = splitResourceId(track.providerId ?: track.id)
@@ -1108,6 +1113,8 @@ class NeteaseProvider(
         const val FAVORITE_RESOURCE_ALBUM = "album"
         const val FAVORITE_STATE_PAGE_SIZE = 200
         const val FAVORITE_STATE_MAX_PAGES = 10
+        /** `/v3/song/detail` keys that reveal which tiers the resource exists in. */
+        val QUALITY_AVAILABILITY_KEYS = listOf("l", "h", "sq", "hr")
         val INFO = ProviderInfo(
             providerId = ID,
             providerName = NAME,

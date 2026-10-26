@@ -1,5 +1,7 @@
 package org.feeluown.mobile
 
+import kotlin.concurrent.Volatile
+
 /**
  * Session-scoped quality override set by the now-playing quality picker.
  *
