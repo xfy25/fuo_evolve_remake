@@ -2,6 +2,24 @@ name: Android Build
 
 "on":
   workflow_dispatch:
+  # Also runs on branch pushes so the workflow gets registered by GitHub and so
+  # a broken build is caught before it reaches the default branch. Narrow the
+  # trigger (or drop it) once dispatch-only behaviour is preferred again.
+  push:
+    branches:
+      - feat/melox-quality-tiers
+    paths:
+      - "androidApp/**"
+      - "shared/**"
+      - "feature/**"
+      - "playback/**"
+      - "provider/**"
+      - "core/**"
+      - "persistence/**"
+      - "gradle/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - ".github/workflows/android-build.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
