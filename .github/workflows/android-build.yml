@@ -68,6 +68,30 @@ jobs:
         with:
           add-job-summary: never
 
+      # Debug APKs are signed with ~/.android/debug.keystore, which AGP creates
+      # with a fresh random key the first time it is needed. Runners are
+      # ephemeral, so without this cache every build gets a different signature:
+      # Android then refuses in-place upgrades, and uninstalling also deletes the
+      # Android Keystore entry that encrypts the provider login cookies. Caching
+      # the keystore keeps the signature stable so APKs upgrade in place and the
+      # login survives.
+      - name: Restore stable debug keystore
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: android-debug-keystore-v1
+
+      - name: Report debug signing fingerprint
+        run: |
+          keystore="$HOME/.android/debug.keystore"
+          if [ -f "$keystore" ]; then
+            keytool -list -v -keystore "$keystore" -storepass android \
+              -alias androiddebugkey 2>/dev/null | grep -E 'SHA256:' || true
+          else
+            echo "::warning::No cached debug keystore; this run generates a new one and "
+            echo "::warning::the resulting APK will NOT install over existing builds."
+          fi
+
       - name: Build arm64-v8a debug APK
         run: >-
           ./gradlew
@@ -87,6 +111,16 @@ jobs:
             exit 1
           fi
           echo "APK: ${apks[0]}"
+          # Print the signer so a keystore rotation (which silently breaks
+          # in-place upgrades) is visible in the log.
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          apksigner=""
+          if [ -n "$sdk" ]; then
+            apksigner=$(ls -d "$sdk"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
+          fi
+          if [ -n "$apksigner" ]; then
+            "$apksigner" verify --print-certs "${apks[0]}" | grep -i 'SHA-256' || true
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
